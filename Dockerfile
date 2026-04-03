@@ -33,5 +33,5 @@ RUN mkdir -p data store groups
 # The app doesn't expose a port by default, but Coolify likes one
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "run", "start"]
+# Start the app with a fallback to keep the container running on failure (for manual authentication)
+CMD ["sh", "-c", "npm run start || tail -f /dev/null"]
