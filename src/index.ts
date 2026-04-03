@@ -475,7 +475,10 @@ async function startMessageLoop(): Promise<void> {
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
           const group = registeredGroups[chatJid];
-          if (!group) continue;
+          if (!group) {
+            logger.debug({ chatJid, count: groupMessages.length }, 'Skipping messages: group not registered');
+            continue;
+          }
 
           const channel = findChannel(channels, chatJid);
           if (!channel) {
@@ -498,7 +501,10 @@ async function startMessageLoop(): Promise<void> {
                 (m.is_from_me ||
                   isTriggerAllowed(chatJid, m.sender, allowlistCfg)),
             );
-            if (!hasTrigger) continue;
+            if (!hasTrigger) {
+              logger.debug({ chatJid, trigger: group.trigger, messageSnippet: groupMessages[0].content.slice(0, 50) }, 'Skipping messages: no trigger matched');
+              continue;
+            }
           }
 
           // Pull all messages since lastAgentTimestamp so non-trigger
