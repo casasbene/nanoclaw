@@ -27,6 +27,9 @@ COPY . .
 # Build project
 RUN npm run build
 
+# Build agent-runner (required for Docker bypass)
+RUN cd container/agent-runner && npm install && npm run build
+
 # Create necessary directories
 RUN mkdir -p data store groups
 

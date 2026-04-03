@@ -294,48 +294,38 @@ export async function runContainerAgent(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
-  // Main group uses the default OneCLI agent; others use their own agent.
-  const agentIdentifier = input.isMain
-    ? undefined
-    : group.folder.toLowerCase().replace(/_/g, '-');
-  const containerArgs = await buildContainerArgs(
-    mounts,
-    containerName,
-    agentIdentifier,
-  );
-
-  logger.debug(
-    {
-      group: group.name,
-      containerName,
-      mounts: mounts.map(
-        (m) =>
-          `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`,
-      ),
-      containerArgs: containerArgs.join(' '),
-    },
-    'Container mount configuration',
-  );
+  
+  // Call buildVolumeMounts to ensure all directories and files are initialized correctly!
+  buildVolumeMounts(group, input.isMain);
 
   logger.info(
     {
       group: group.name,
       containerName,
-      mountCount: mounts.length,
       isMain: input.isMain,
+      mode: 'bypass-docker'
     },
-    'Spawning container agent',
+    'Spawning container agent (Bypass Mode - No Docker)',
   );
 
   const logsDir = path.join(groupDir, 'logs');
   fs.mkdirSync(logsDir, { recursive: true });
 
+  const agentIndex = path.join(process.cwd(), 'container', 'agent-runner', 'dist', 'index.js');
+  const groupIpcDir = resolveGroupIpcPath(group.folder);
+
   return new Promise((resolve) => {
-    const container = spawn(CONTAINER_RUNTIME_BIN, containerArgs, {
+    const container = spawn(process.execPath, [agentIndex], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        NANOCLAW_IPC_DIR: groupIpcDir,
+        NANOCLAW_GROUP_DIR: groupDir,
+        NANOCLAW_GLOBAL_DIR: path.join(GROUPS_DIR, 'global'),
+        NANOCLAW_EXTRA_DIR: '/workspace/extra'
+      }
     });
 
     onProcess(container, containerName);
@@ -545,15 +535,10 @@ export async function runContainerAgent(
         }
         logLines.push(
           `=== Container Args ===`,
-          containerArgs.join(' '),
+          `[BYPASSED - Running natively via node]`,
           ``,
           `=== Mounts ===`,
-          mounts
-            .map(
-              (m) =>
-                `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`,
-            )
-            .join('\n'),
+          `[BYPASSED - Using process.env paths natively]`,
           ``,
           `=== Stderr${stderrTruncated ? ' (TRUNCATED)' : ''} ===`,
           stderr,
@@ -568,9 +553,7 @@ export async function runContainerAgent(
           `Session ID: ${input.sessionId || 'new'}`,
           ``,
           `=== Mounts ===`,
-          mounts
-            .map((m) => `${m.containerPath}${m.readonly ? ' (ro)' : ''}`)
-            .join('\n'),
+          `[BYPASSED - Using process.env paths natively]`,
           ``,
         );
       }
