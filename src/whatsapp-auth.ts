@@ -148,7 +148,9 @@ async function connectSocket(
         connectSocket(phoneNumber, true);
       } else {
         fs.writeFileSync(STATUS_FILE, `failed:${reason || 'unknown'}`);
-        console.log('\n✗ Connection failed. Please try again.');
+        console.log('\n✗ Connection failed. Reason:', reason);
+        console.error(lastDisconnect?.error);
+        console.log('\nTIP: Try running "rm -rf store/auth" and then testing again.');
         process.exit(1);
       }
     }
