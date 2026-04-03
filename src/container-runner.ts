@@ -320,10 +320,21 @@ export async function runContainerAgent(
   // (created by buildVolumeMounts above)
   const sessionsHome = path.join(DATA_DIR, 'sessions', group.folder);
 
+  // Ensure directories writable by node user (uid 1000) since agent-runner
+  // is spawned as non-root (required by Claude Code CLI)
+  const NODE_UID = 1000;
+  const NODE_GID = 1000;
+  for (const dir of [sessionsHome, groupDir, groupIpcDir, logsDir, path.join(GROUPS_DIR, 'global')]) {
+    fs.mkdirSync(dir, { recursive: true });
+    try { fs.chownSync(dir, NODE_UID, NODE_GID); } catch { /* may not have permission */ }
+  }
+
   return new Promise((resolve) => {
     const container = spawn(process.execPath, [agentIndex], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: groupDir,
+      uid: NODE_UID,
+      gid: NODE_GID,
       env: {
         ...process.env,
         HOME: sessionsHome,
