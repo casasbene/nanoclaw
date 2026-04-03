@@ -612,6 +612,12 @@ async function main(): Promise<void> {
       /* may not exist */
     }
     log(`Received input for group: ${containerInput.groupFolder}`);
+    // Startup diagnostics
+    log(`HOME=${process.env.HOME}`);
+    log(`uid=${process.getuid?.() ?? 'N/A'} gid=${process.getgid?.() ?? 'N/A'}`);
+    log(`ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ? 'SET (' + process.env.ANTHROPIC_API_KEY.slice(0, 12) + '...)' : 'NOT SET'}`);
+    log(`ANTHROPIC_BASE_URL=${process.env.ANTHROPIC_BASE_URL || 'NOT SET'}`);
+    log(`cwd=${process.cwd()}`);
   } catch (err) {
     writeOutput({
       status: 'error',
@@ -719,7 +725,11 @@ async function main(): Promise<void> {
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    const errorCause = err instanceof Error && err.cause ? String(err.cause) : undefined;
     log(`Agent error: ${errorMessage}`);
+    if (errorStack) log(`Stack: ${errorStack}`);
+    if (errorCause) log(`Cause: ${errorCause}`);
     writeOutput({
       status: 'error',
       result: null,

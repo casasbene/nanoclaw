@@ -316,11 +316,17 @@ export async function runContainerAgent(
   const agentIndex = path.join(process.cwd(), 'container', 'agent-runner', 'dist', 'index.js');
   const groupIpcDir = resolveGroupIpcPath(group.folder);
 
+  // HOME must point to sessions dir so Claude Code SDK finds .claude/settings.json
+  // (created by buildVolumeMounts above)
+  const sessionsHome = path.join(DATA_DIR, 'sessions', group.folder);
+
   return new Promise((resolve) => {
     const container = spawn(process.execPath, [agentIndex], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: groupDir,
       env: {
         ...process.env,
+        HOME: sessionsHome,
         NANOCLAW_IPC_DIR: groupIpcDir,
         NANOCLAW_GROUP_DIR: groupDir,
         NANOCLAW_GLOBAL_DIR: path.join(GROUPS_DIR, 'global'),

@@ -1,18 +1,16 @@
 /**
  * Container runtime abstraction for NanoClaw.
- * All runtime-specific logic lives here so swapping runtimes means changing one file.
+ * BYPASS MODE: All Docker-specific logic is disabled. Agents run natively via Node.js.
  */
-import { execSync } from 'child_process';
 import os from 'os';
 
 import { logger } from './logger.js';
 
-/** The container runtime binary name. */
+/** The container runtime binary name (kept for API compatibility). */
 export const CONTAINER_RUNTIME_BIN = 'docker';
 
 /** CLI args needed for the container to resolve the host gateway. */
 export function hostGatewayArgs(): string[] {
-  // On Linux, host.docker.internal isn't built-in — add it explicitly
   if (os.platform() === 'linux') {
     return ['--add-host=host.docker.internal:host-gateway'];
   }
@@ -27,12 +25,11 @@ export function readonlyMountArgs(
   return ['-v', `${hostPath}:${containerPath}:ro`];
 }
 
-/** Stop a container by name. Uses execFileSync to avoid shell injection. */
-export function stopContainer(name: string): void {
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name)) {
-    throw new Error(`Invalid container name: ${name}`);
-  }
-  execSync(`${CONTAINER_RUNTIME_BIN} stop -t 1 ${name}`, { stdio: 'pipe' });
+/** Stop a container by name. In bypass mode, this is a no-op. */
+export function stopContainer(_name: string): void {
+  // Bypass mode: agents run as child processes, not Docker containers.
+  // The parent process uses container.kill() directly.
+  logger.debug('stopContainer called in bypass mode (no-op)');
 }
 
 /** Ensure the container runtime is running, starting it if needed. */
@@ -43,26 +40,7 @@ export function ensureContainerRuntimeRunning(): void {
 
 /** Kill orphaned NanoClaw containers from previous runs. */
 export function cleanupOrphans(): void {
-  try {
-    const output = execSync(
-      `${CONTAINER_RUNTIME_BIN} ps --filter name=nanoclaw- --format '{{.Names}}'`,
-      { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
-    );
-    const orphans = output.trim().split('\n').filter(Boolean);
-    for (const name of orphans) {
-      try {
-        stopContainer(name);
-      } catch {
-        /* already stopped */
-      }
-    }
-    if (orphans.length > 0) {
-      logger.info(
-        { count: orphans.length, names: orphans },
-        'Stopped orphaned containers',
-      );
-    }
-  } catch (err) {
-    logger.warn({ err }, 'Failed to clean up orphaned containers');
-  }
+  // Bypass mode: no Docker containers to clean up.
+  // Child processes are tracked and cleaned up by the Node.js process manager.
+  logger.debug('cleanupOrphans skipped (bypass mode)');
 }

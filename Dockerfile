@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     curl \
     ca-certificates \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install claude-code globally (required by agent-runner SDK)
@@ -31,6 +32,15 @@ RUN cd container/agent-runner && npm install && npm run build
 
 # Create necessary directories
 RUN mkdir -p data store groups
+
+# Ensure node user owns everything it needs to write to
+RUN chown -R node:node /app/data /app/store /app/groups /home/node
+
+# Prepare .claude config dir for node user (Claude Code SDK requires it)
+RUN mkdir -p /home/node/.claude && chown -R node:node /home/node/.claude
+
+# Switch to non-root user (REQUIRED: Claude Code CLI refuses to run as root)
+USER node
 
 # The app doesn't expose a port by default, but Coolify likes one
 EXPOSE 3000
